@@ -8,11 +8,17 @@ class SlackService {
     this.defaultPriorities = 'SEV-1,SEV-2'
   }
 
-  buildMessage({ channelId, incidentTitle, incidentUrl = 'https://1deb2eccbe8f.ngrok.io' }) {
+  buildMessage({
+    channelToSend,
+    incidentChannelId,
+    incidentTitle,
+    incidentUrl,
+    priority
+  }) {
     const slackLink = 'https://small-y6x9515.slack.com'
 
     return {
-      channel: channelId,
+      channel: channelToSend,
       text: incidentTitle,
       blocks: [
         {
@@ -27,7 +33,16 @@ class SlackService {
           "fields": [
             {
               "type": "mrkdwn",
-              "text": `<${slackLink}/archives/${this.rootChannelId}|Channel link>`,
+              "text": `${priority}`
+            }
+          ]
+        },
+        {
+          "type": "section",
+          "fields": [
+            {
+              "type": "mrkdwn",
+              "text": `<${slackLink}/archives/${incidentChannelId}|Channel link>`,
             },
             {
               "type": "mrkdwn",
@@ -39,38 +54,61 @@ class SlackService {
     }
   }
 
-  async sendIncident(data) {
-    let incident = data;
-    if (data.messages) {
-      incident = data.messages[0]
-    }
-    const isPriority = this.isInPriority(incident)
-    if (!isPriority) {
-      return "Low priority incident"
-    }
-    sendEmails(incident)
-
+  async sendIncident(incident) {
     const channelName = incident.incident.title ? incident.incident.title
       .toLocaleLowerCase()
       .trim()
       .replace(/ /gi, '-') :
       `Incident ${new Date()}`
-    // Проверить наличие канала
-    const newChannel = await this.slackClient.conversations.create({ name: channelName });
-    const members = await this.getRootChannelMembers()
-    const result = await this.slackClient.conversations
-      .invite({
-        channel: newChannel.channel.id,
-        users: members.join(",")
-      })
-    const id = await this.getChannelId()
 
-    await this.slackClient.chat.postMessage(this.buildMessage({
-      channelId: id,
-      incidentTitle: incident.incident.title,
-      incidentUrl: incident.incident.html_url
-    }))
-    return result
+    const inPriority = this.isInPriority(incident)
+    const existsChannel = await this.isChannelExists(channelName)
+
+    if (existsChannel && incident.incident.status === 'resolved') {
+      await this.slackClient.chat.postMessage(this.buildMessage({
+        channelToSend: existsChannel,
+        incidentChannelId: existsChannel,
+        incidentTitle: incident.incident.title,
+        incidentUrl: incident.incident.html_url,
+        priority: "Incident resolved"
+      }))
+    } else if (existsChannel) {
+      await this.slackClient.chat.postMessage(this.buildMessage({
+        channelToSend: existsChannel,
+        incidentChannelId: existsChannel,
+        incidentTitle: incident.incident.title,
+        incidentUrl: incident.incident.html_url,
+        priority: `Updated the priority of the incident: ${incident.incident.priority.summary}`
+      }))
+
+      sendEmails({ type: "update", incident })
+
+      return "Updated priority"
+
+    } else if (!existsChannel && inPriority) {
+      const newChannel = await this.slackClient.conversations.create({ name: channelName });
+      const members = await this.getRootChannelMembers()
+      const result = await this.slackClient.conversations
+        .invite({
+          channel: newChannel.channel.id,
+          users: members.join(",")
+        })
+      const id = await this.getChannelId()
+
+      await this.slackClient.chat.postMessage(this.buildMessage({
+        channelToSend: id,
+        incidentChannelId: newChannel.channel.id,
+        incidentTitle: incident.incident.title,
+        incidentUrl: incident.incident.html_url,
+        priority: `Incident priority: ${incident.incident.priority.summary}`
+      }))
+
+      sendEmails({ type: "new", incident })
+
+      return result
+    } else if (!existsChannel && !inPriority) {
+      return "Low priority incident"
+    }
   }
 
   /**
@@ -102,7 +140,7 @@ class SlackService {
   }
 
   /**
-   * @returns {string|null}
+   * @returns {string|null} - returns the ID of the main channel
    */
   async getChannelId() {
     try {
@@ -120,6 +158,18 @@ class SlackService {
     } catch (e) {
       console.log(e)
     }
+  }
+
+  /**
+   * @param {string} channelName 
+   * @returns {boolean|string}
+   */
+  async isChannelExists(channelName) {
+    const result = await this.slackClient.conversations.list()
+    const channel = result.channels.find(channel => channel.name === channelName)
+
+    if (channel) return channel.id
+    return false
   }
 }
 

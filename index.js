@@ -16,17 +16,18 @@ app.get("/", (req, res) => res.send({ message: "Ok" }))
 
 app.post("/incident", async (req, res) => {
   try {
-    // СОХРАНЯТЬ ПОСЛЕДНЮЮ ДАТУ
-    const incidentResult = await slackService.sendIncident(req.body)
-    // console.log("incidentResult", incidentResult)
-    // res.send({ sult })
+    if (req.body.messages && req.body.messages.length) {
+      for (let i = 0; i < req.body.messages.length; i++) {
+        const incident = req.body.messages[i];
+        await slackService.sendIncident(incident)
+      }
+    } else {
+      await slackService.sendIncident(req.body)
+    }
     res.end()
   } catch (e) {
     console.log("Error:", e)
   }
-  // console.log("slackService", slackService.client)
-  // console.dir(req.params, { depth: null })
-  // console.dir(req.body, { depth: null })
 })
 
 app.use((err, req, res, next) => (
