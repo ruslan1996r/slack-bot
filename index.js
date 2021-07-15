@@ -7,6 +7,7 @@ const PORT = process.env.APP_PORT || 5000
 
 const { slackClient } = require("./slack/slackConnect")
 const { SlackService } = require("./slack/slackService")
+const storeService = require('./store/storeService');
 
 const slackService = new SlackService(slackClient)
 
@@ -16,7 +17,13 @@ app.get("/", (req, res) => res.send({ message: "Ok" }))
 
 app.post("/incident", async (req, res) => {
   try {
-    // СОХРАНЯТЬ ПОСЛЕДНЮЮ ДАТУ
+    storeService.processMessages(req.body?.messages, slackService.isInPriority)
+      .catch((error) => {
+        console.error('StoreService processMessages error:');
+        console.dir(error, { depth: null });
+      });
+
+
     const incidentResult = await slackService.sendIncident(req.body)
     // console.log("incidentResult", incidentResult)
     // res.send({ sult })
