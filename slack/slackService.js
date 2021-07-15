@@ -49,29 +49,28 @@ class SlackService {
       return "Low priority incident"
     }
     sendEmails(incident)
-    // console.log("incident", incident)
 
-    // const channelName = incident.incident.title ? incident.incident.title
-    //   .toLocaleLowerCase()
-    //   .trim()
-    //   .replace(/ /gi, '-') :
-    //   `Incident ${new Date()}`
+    const channelName = incident.incident.title ? incident.incident.title
+      .toLocaleLowerCase()
+      .trim()
+      .replace(/ /gi, '-') :
+      `Incident ${new Date()}`
+    // Проверить наличие канала
+    const newChannel = await this.slackClient.conversations.create({ name: channelName });
+    const members = await this.getRootChannelMembers()
+    const result = await this.slackClient.conversations
+      .invite({
+        channel: newChannel.channel.id,
+        users: members.join(",")
+      })
+    const id = await this.getChannelId()
 
-    // const newChannel = await this.slackClient.conversations.create({ name: channelName });
-    // const members = await this.getRootChannelMembers()
-    // const result = await this.slackClient.conversations
-    //   .invite({
-    //     channel: newChannel.channel.id,
-    //     users: members.join(",")
-    //   })
-    // const id = await this.getChannelId()
-
-    // await this.slackClient.chat.postMessage(this.buildMessage({
-    //   channelId: id,
-    //   incidentTitle: incident.incident.title,
-    //   incidentUrl: incident.incident.html_url
-    // }))
-    // return result
+    await this.slackClient.chat.postMessage(this.buildMessage({
+      channelId: id,
+      incidentTitle: incident.incident.title,
+      incidentUrl: incident.incident.html_url
+    }))
+    return result
   }
 
   /**
