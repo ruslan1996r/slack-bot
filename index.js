@@ -22,17 +22,18 @@ app.post("/incident", async (req, res) => {
         const incident = req.body.messages[i];
         await slackService.sendIncident(incident)
       }
+
+      storeService.processMessages(req.body.messages, slackService.isInPriority)
     } else {
       await slackService.sendIncident(req.body)
+
+      storeService.processMessages({ messages: [req.body] }, slackService.isInPriority)
     }
-    storeService.processMessages(req.body?.messages, slackService.isInPriority)
-      .catch((error) => {
-        console.error('StoreService processMessages error:');
-        console.dir(error, { depth: null });
-      });
+
     res.end()
   } catch (e) {
     console.log("Error:", e)
+    console.dir(error, { depth: null });
   }
 })
 
