@@ -1,0 +1,70 @@
+# Все функии к которым будем обращаться, будут называться через этот префикс
+service: sls
+
+frameworkVersion: '2'
+
+custom:
+  settings:
+    INCIDENTS: incidents
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  environment: ${self:custom.settings}
+  region: us-east-2
+  iam:
+    role:
+      statements:
+      - Effect: "Allow"
+        Action:
+          - "dynamodb:DescribeTable"
+          - "dynamodb:Scan"
+          - "dynamodb:GetItem"
+          - "dynamodb:PutItem"
+          - "dynamodb:UpdateItem"
+          - "dynamodb:DeleteItem"
+        Resource:
+          - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:custom.settings.INCIDENTS}"
+  lambdaHashingVersion: 20201221
+
+functions:
+  createIncident:
+    handler: handler.createIncident
+    events:
+      - http:
+          path: /
+          method: post
+  getIncidents:
+    handler: handler.getIncidents
+    events:
+      - http:
+          path: /
+          method: get
+  getPost:
+    handler: handler.getIncident
+    events:
+      - http:
+          path: /{id}
+          method: get
+  updateIncident:
+    handler: handler.updateIncident
+    events:
+      - http:
+          path: /{id}
+          method: put
+
+resources:
+  Resources:
+    PostsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+        - AttributeName: "id"
+          AttributeType: "S" # S = String
+        KeySchema:
+        - AttributeName: "id"
+          KeyType: "HASH"
+        ProvisionedThroughput: # предоставленная пропускная способность
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.settings.INCIDENTS}
