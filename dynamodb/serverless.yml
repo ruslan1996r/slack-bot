@@ -1,4 +1,3 @@
-# Все функии к которым будем обращаться, будут называться через этот префикс
 service: sls
 
 frameworkVersion: '2'
@@ -60,11 +59,11 @@ resources:
       Properties:
         AttributeDefinitions:
         - AttributeName: "id"
-          AttributeType: "S" # S = String
+          AttributeType: "S"
         KeySchema:
         - AttributeName: "id"
           KeyType: "HASH"
-        ProvisionedThroughput: # предоставленная пропускная способность
+        ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
         TableName: ${self:custom.settings.INCIDENTS}
