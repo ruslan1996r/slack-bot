@@ -5,6 +5,7 @@
 /.pnp
 .pnp.js
 /.env
+/dynamodb/.serverless
 
 # testing
 /coverage

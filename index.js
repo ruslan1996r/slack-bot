@@ -1,5 +1,5 @@
 require('dotenv').config()
-require("./mail/mail")
+require("./mail")
 
 const express = require("express")
 const app = express()

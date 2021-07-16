@@ -1,4 +1,7 @@
-const { sendEmails } = require("../mail/mail")
+const { sendEmails } = require("../mail")
+const { DynamoDBService } = require('../dbService')
+
+const DBService = new DynamoDBService()
 
 class SlackService {
   constructor(client) {
@@ -72,6 +75,12 @@ class SlackService {
         incidentUrl: incident.incident.html_url,
         priority: "Incident resolved"
       }))
+
+      await DBService.updateIncident(
+        incident.incident.id,
+        { incidentPriority: 'RESOLVED' }
+      )
+
     } else if (existsChannel) {
       await this.slackClient.chat.postMessage(this.buildMessage({
         channelToSend: existsChannel,
@@ -80,6 +89,11 @@ class SlackService {
         incidentUrl: incident.incident.html_url,
         priority: `Updated the priority of the incident: ${incident.incident.priority.summary}`
       }))
+
+      await DBService.updateIncident(
+        incident.incident.id,
+        { incidentPriority: incident.incident.priority.summary }
+      )
 
       sendEmails({ type: "update", incident })
 
@@ -102,6 +116,12 @@ class SlackService {
         incidentUrl: incident.incident.html_url,
         priority: `Incident priority: ${incident.incident.priority.summary}`
       }))
+
+      await DBService.createIncident({
+        incidentPriority: incident.incident.priority.summary,
+        incidentId: incident.incident.id,
+        incidentTitle: incident.incident.title
+      })
 
       sendEmails({ type: "new", incident })
 
